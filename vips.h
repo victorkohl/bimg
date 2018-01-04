@@ -55,6 +55,13 @@ typedef struct {
 	float    Opacity;
 } WatermarkImageOptions;
 
+typedef struct {
+	int		 Page;
+	int		 N;
+	double DPI;
+	double Scale;
+} ImageLoadOptions;
+
 static unsigned long
 has_profile_embed(VipsImage *image) {
 	return vips_image_get_typeof(image, VIPS_META_ICC_NAME);
@@ -348,7 +355,7 @@ vips_flatten_background_brigde(VipsImage *in, VipsImage **out, double r, double 
 }
 
 int
-vips_init_image (void *buf, size_t len, int imageType, VipsImage **out) {
+vips_init_image (void *buf, size_t len, int imageType, VipsImage **out, ImageLoadOptions *o) {
 	int code = 1;
 
 	if (imageType == JPEG) {
@@ -364,7 +371,13 @@ vips_init_image (void *buf, size_t len, int imageType, VipsImage **out) {
 	} else if (imageType == GIF) {
 		code = vips_gifload_buffer(buf, len, out, "access", VIPS_ACCESS_RANDOM, NULL);
 	} else if (imageType == PDF) {
-		code = vips_pdfload_buffer(buf, len, out, "access", VIPS_ACCESS_RANDOM, NULL);
+		code = vips_pdfload_buffer(buf, len, out,
+			"access", VIPS_ACCESS_RANDOM,
+			"page", o->Page,
+			"n", o->N,
+			"dpi", o->DPI,
+			"scale", o->Scale,
+			NULL);
 	} else if (imageType == SVG) {
 		code = vips_svgload_buffer(buf, len, out, "access", VIPS_ACCESS_RANDOM, NULL);
 #endif

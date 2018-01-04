@@ -13,6 +13,14 @@ const (
 	MaxSize = 16383
 )
 
+// ImageLoadOptions represents the image load supported options.
+type ImageLoadOptions struct {
+	Page  int
+	N     int
+	DPI   float64
+	Scale float64
+}
+
 // Gravity represents the image gravity value.
 type Gravity int
 
@@ -210,6 +218,7 @@ type Options struct {
 	StripMetadata  bool
 	Trim           bool
 	Lossless       bool
+	Load           ImageLoadOptions
 	Extend         Extend
 	Rotate         Angle
 	Background     Color

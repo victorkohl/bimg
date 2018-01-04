@@ -43,6 +43,14 @@ type VipsMemoryInfo struct {
 	Allocations     int64
 }
 
+// vipsImageLoadOptions represents the image load options used to talk with libvips.
+type vipsImageLoadOptions struct {
+	Page  C.int
+	N     C.int
+	DPI   C.double
+	Scale C.double
+}
+
 // vipsSaveOptions represents the internal option used to talk with libvips.
 type vipsSaveOptions struct {
 	Quality        int
@@ -292,18 +300,33 @@ func vipsWatermark(image *C.VipsImage, w Watermark) (*C.VipsImage, error) {
 	return out, nil
 }
 
-func vipsRead(buf []byte) (*C.VipsImage, ImageType, error) {
+func vipsRead(buf []byte, o *ImageLoadOptions) (*C.VipsImage, ImageType, error) {
 	var image *C.VipsImage
 	imageType := vipsImageType(buf)
 
 	if imageType == UNKNOWN {
 		return nil, UNKNOWN, errors.New("Unsupported image format")
 	}
+	if o == nil {
+		o = &ImageLoadOptions{}
+	}
+
+	// Defaults
+	if o.N == 0 {
+		o.N = 1
+	}
+	if o.DPI == 0 {
+		o.DPI = 72
+	}
+	if o.Scale == 0 {
+		o.Scale = 1
+	}
 
 	length := C.size_t(len(buf))
 	imageBuf := unsafe.Pointer(&buf[0])
+	opts := vipsImageLoadOptions{C.int(o.Page), C.int(o.N), C.double(o.DPI), C.double(o.Scale)}
 
-	err := C.vips_init_image(imageBuf, length, C.int(imageType), &image)
+	err := C.vips_init_image(imageBuf, length, C.int(imageType), &image, (*C.ImageLoadOptions)(unsafe.Pointer(&opts)))
 	if err != 0 {
 		return nil, UNKNOWN, catchVipsError()
 	}
@@ -312,7 +335,7 @@ func vipsRead(buf []byte) (*C.VipsImage, ImageType, error) {
 }
 
 func vipsColourspaceIsSupportedBuffer(buf []byte) (bool, error) {
-	image, _, err := vipsRead(buf)
+	image, _, err := vipsRead(buf, nil)
 	if err != nil {
 		return false, err
 	}
@@ -325,7 +348,7 @@ func vipsColourspaceIsSupported(image *C.VipsImage) bool {
 }
 
 func vipsInterpretationBuffer(buf []byte) (Interpretation, error) {
-	image, _, err := vipsRead(buf)
+	image, _, err := vipsRead(buf, nil)
 	if err != nil {
 		return InterpretationError, err
 	}
@@ -688,7 +711,7 @@ func max(x int) int {
 func vipsDrawWatermark(image *C.VipsImage, o WatermarkImage) (*C.VipsImage, error) {
 	var out *C.VipsImage
 
-	watermark, _, e := vipsRead(o.Buf)
+	watermark, _, e := vipsRead(o.Buf, nil)
 	if e != nil {
 		return nil, e
 	}
